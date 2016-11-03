@@ -1,0 +1,7 @@
+(lp0
+(lp1
+S'john'
+p2
+aS'monkey'
+p3
+aa.
