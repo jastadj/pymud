@@ -1,12 +1,9 @@
-items = []
 
+items = []
 
 class Item(object):
 	def __init__(self, name):
 		self.name = name
-
-
-items.append( Item("rock") )
 
 def copyItem(itemindex):
 	global items
@@ -15,3 +12,6 @@ def copyItem(itemindex):
 		return None
 	
 	return items[itemindex]
+
+#debug
+items.append( Item("rock") )

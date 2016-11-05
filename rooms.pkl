@@ -1,0 +1,25 @@
+(lp0
+ccopy_reg
+_reconstructor
+p1
+(croom
+room
+p2
+c__builtin__
+object
+p3
+Ntp4
+Rp5
+(dp6
+S'inventory'
+p7
+(lp8
+sS'name'
+p9
+S'Basement'
+p10
+sS'desc'
+p11
+S'You are standing in a dingy cold basement.  Mildew and cobwebs are networked through out.  The air feels moist and disgusting.'
+p12
+sba.

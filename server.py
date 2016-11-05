@@ -9,42 +9,14 @@ from thread import *
 import user
 import room
 import item
-
-#shutdown flag
-doshutdown = False
-
-# server setup
-SERVER_TIMEOUT = 5
-CONNECTION_LIST = []    # list of socket clients
-RECV_BUFFER = 4096 # Advisable to keep it as an exponent of 2
-PORT = 8888
- 
-# create server socket
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# this has no effect, why ?
-server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-server_socket.bind(("0.0.0.0", PORT))
-server_socket.listen(10)
-
-# Add server socket to the list of readable connections
-CONNECTION_LIST.append(server_socket)
-
-print "Chat server started on port " + str(PORT)
-
-
-
-# load users
-global usercred
-global users
-user.loadUsers()
-
-# load rooms
-global rooms
-room.loadRooms()
+import game
+import command
 
 
 def doLogin(conn):
-
+    
+    global doshutdown
+    
     # prompt login
     conn.send('login:')
     userlogin = ["",""]
@@ -55,10 +27,11 @@ def doLogin(conn):
     mode_newusername = 7
     mode_newuserpass1 = 8
     mode_newuserpass2 = 9
+    mode_done = 5
     currentuser = None
     
     #infinite loop so that function do not terminate and thread do not end.
-    while mode != 5:
+    while mode != mode_done:
          
         #Receiving from client
         data = conn.recv(1024)
@@ -66,12 +39,18 @@ def doLogin(conn):
         if not data:
             break
      
-        #conn.sendall(reply)
         
         usercmd = data[:-2]
         
+
+        
         if mode == mode_getlogin:
             userlogin[0] = usercmd
+            # debug shutdown
+            if userlogin[0] == "shutdown":
+                conn.sendall("commanding server shutdown\n")
+                shutdownServer(None)
+            
             if user.usernameAvailable(userlogin[0]):
                 mode = mode_newusername
                 conn.sendall("User name available.  Create new user?(y/n)")
@@ -82,8 +61,9 @@ def doLogin(conn):
         elif mode == mode_getpass:
             userlogin[1] = usercmd
 
-            if user.validLogin(userlogin):
+            if user.validLogin(userlogin) == True:
                 mode = mode_user
+                conn.sendall("Successful login!\n")
             else:
                 if user.userOnline(userlogin[0]):
                     conn.sendall("User is already logged in!\n")
@@ -110,91 +90,86 @@ def doLogin(conn):
                 conn.sendall("login:")
                 mode = mode_getlogin
             else:
-                user.usercred.append(userlogin)
-                conn.sendall("User " + userlogin[0] + " created.\n")
-                mode = mode_user
+                if not user.createUserAccount(userlogin):
+                    conn.sendall("Error creating user account!\n")
+                    mode = mode_getlogin
+                else:
+                    conn.sendall("User " + userlogin[0] + " created.\n")
+                    mode = mode_user
         
         if mode == mode_user:
             conn.sendall("logged in as:" + userlogin[0] + "\n")
             currentuser = user.user(conn, userlogin[0])
             user.users.append(currentuser)
             print currentuser.name + " logged in."
-            handleUser(currentuser)
+            mode = mode_done
+            game.handleUser(currentuser)
                 
                 
             
      
     #came out of loop
-    print "disconnected:"
-    print conn.getpeername()
+    #print "disconnected:"
+    #print conn.getpeername()
     if currentuser != None :
-        users.remove(currentuser)
+        user.users.remove(currentuser)
     conn.close()
 
-def handleUser(user):
-    global doshutdown
-    userquit = False
-    
-    room.lookRoom(user)
-    
-    while not userquit:
-        
-        user.conn.sendall(">")
-        
-        # get input from user
-        data = user.conn.recv(1024)
-        
-        # data not valid, user disconnected?
-        if not data:
-            break
-     
-        
-        usercmds = data.split()
-            
-        if len(usercmds) == 0:
-            continue
 
-        elif usercmds[0] == "say":
-            broadcast(user, unsplit(usercmds[1:]) )
-        elif len(usercmds) == 1:
-            if usercmds[0] == "shutdown":
-                user.conn.sendall("commanding server shutdown\n")
-                doshutdown = True
-            elif usercmds[0] == "save":
-                user.conn.sendall("Saving server...\n")
-                saveServer()
-            elif usercmds[0] == "look":
-                room.lookRoom(user)
-            elif usercmds[0] == "editroom":
-                room.getCurrentRoom(user).userEdit(user)
-            elif usercmds[0] == "debug":
-                room.getCurrentRoom(user).addItem( item.copyItem(0) )
-                
-        else:
-            user.conn.sendall("Unknown command!\n")
-            
-
-
-
-def broadcast(suser, msg):
-    mystr = suser.name + ": " + msg
-    print mystr
-    for tuser in user.users:
-         tuser.conn.sendall(mystr + "\n")
 
 def serverBroadcast(msg):
     mystr = "[SERVER]: " + msg
     print mystr
-    for tuser in user.users:
-         tuser.conn.sendall(mystr + "\n")
+    for uindex in range(0, len(user.users) ):
+         user.users[uindex].conn.sendall(mystr + "\n")
     
 
 def saveServer():
     user.saveUsers()
     room.saveRooms()
     serverBroadcast("Server saved.")
+    
+    return True
+    
+def shutdownServer(tuser):
+    
+    global shutdown
+    
+    doshutdown = True
+    
+    if tuser != None:
+        print tuser.name + " commanded server shutdown"
+    
+def start():
+    
+    global doshutdown
+    
+    # server setup
+    SERVER_TIMEOUT = 5
+    CONNECTION_LIST = []    # list of socket clients
+    RECV_BUFFER = 4096 # Advisable to keep it as an exponent of 2
+    PORT = 8888
+     
+    # create server socket
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # this has no effect, why ?
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind(("0.0.0.0", PORT))
+    server_socket.listen(10)
 
-if __name__ == "__main__":
+    # Add server socket to the list of readable connections
+    CONNECTION_LIST.append(server_socket)
+
+    print "Chat server started on port " + str(PORT)
+
+
+
+    # load users
+    user.loadUsers()
+
+    # load rooms
+    room.loadRooms()
+
 
     while not doshutdown:
         
@@ -226,7 +201,7 @@ if __name__ == "__main__":
                         usercmd = data[:-2]
                         
                         if usercmd == "shutdown":
-							doshutdown = True
+                            doshutdown = True
                         elif usercmd == "test":
                             sock.send("main test")
                         elif usercmd == "login":
@@ -235,9 +210,9 @@ if __name__ == "__main__":
                         else:
                             sock.send(">")
                     else:
-						print "Client (%s, %s) is offline" % addr
-						sock.close()
-						CONNECTION_LIST.remove(sock)
+                        print "Client (%s, %s) is offline" % addr
+                        sock.close()
+                        CONNECTION_LIST.remove(sock)
                  
                 # client disconnected, so remove from socket list
                 except:
@@ -249,3 +224,8 @@ if __name__ == "__main__":
     
     print "Shutting down..."
     server_socket.close()
+
+if __name__ == "__main__":
+    doshutdown = False
+    
+    start()
