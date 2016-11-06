@@ -15,12 +15,19 @@ def getRoomID(troom):
             return i
     return None
 
+class roomDescriptor(object):
+    def __init__(self, name, desc):
+        self.name = name
+        self.desc = desc
+        
+
 class room(object):
     
     def __init__(self):
         self.name = "unnamed"
         self.desc = "no description"
         self.inventory = []
+        self.descriptors = []
         
         # initialize all exits to none
         self.exits = []
@@ -31,7 +38,14 @@ class room(object):
         return getRoomID(self)
     
     def doValidate(self):
-        hadtovalidate = False        
+        hadtovalidate = False   
+        
+        try:
+            dtest = len(self.descriptors())
+        except AttributeError:
+            self.descriptors = []
+            hadtovalidate = True
+            
         return hadtovalidate
     
     def connectRoom(self, troom, tdir):
@@ -71,12 +85,14 @@ class room(object):
         print self.name
         print self.desc
         print self.exits
-        print self.inventory
-    
+        print "items:" + str(len(self.inventory) )
+        print "descriptors:" + str(len(self.descriptors))
     def userShow(self, tuser):
         # print room name and description
-        tuser.conn.sendall(self.name + "\n")
-        tuser.conn.sendall(self.desc + "\n")
+        tuser.send("%s" % setColor(tuser, COLOR_CYAN, True) )
+        tuser.send(self.name + "\n")
+        tuser.send("%s" % resetColor(tuser) )
+        tuser.send(self.desc + "\n")
         
         # print exits in room
         exitsfound = []
@@ -90,7 +106,9 @@ class room(object):
                     exitstring += i
                 else:
                     exitstring += i + ", "
+            tuser.send("%s" % setColor(tuser, COLOR_MAGENTA) )
             tuser.send(exitstring + "\n")
+            tuser.send("%s" % resetColor(tuser))
         
         # print items in room
         if len(self.inventory) > 0:

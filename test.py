@@ -1,36 +1,72 @@
-class myclass(object):
-	count = 0
-	def __init__(self, data):
-		print "myclass contructor..."
-		myclass.count += 1
-		self.data = data
-		
-	def totalCount(self):
-		print myclass.count
+commandlist = []
+
+class command(object):
+	def __init__(self, name, fptr):
+		self.name = name
+		self.fptr = fptr
 	
-	def show(self):
-		print "data=%d" % self.data
+	def execute(self, *args):
+		if self.fptr != None:
+			if len(args) > 0:
+				self.fptr(args[0][0])
+			else:
+				self.fptr("")
 
 
-mylist = []
-mylist.append( myclass(3))
-mylist.append( myclass(77))
 
-print "total count = %d" %myclass.count
 
-for i in mylist:
-	i.show()
 
-print "Creating and appending new item"
-newitem = myclass(19)
 
-mylist.append(newitem)
 
-newitem.show()
-newitem2 = newitem
-newitem2.show()
 
-newitem2.data = 69
-print "\n"
-newitem.show()
-newitem2.show()
+def getCommand(cstr):
+	for i in range(0, len(commandlist) ):
+		if cstr == commandlist[i].name:
+			return commandlist[i]
+	
+	return None
+
+def doLook(*args):
+	
+	if args[0] != "":
+		for arg in args:
+			print arg
+	
+	print "you see a room"
+
+
+
+
+
+if __name__ == "__main__":
+	
+	doquit = False
+	
+	ch = ""
+	
+	commandlist.append( command("look", doLook) )
+	
+	while not doquit:
+		
+		try:
+			ch = raw_input(">")
+		except SyntaxError:
+			pass
+		
+		
+		if len(ch) == 0:
+			continue
+			
+		words = ch.split()
+			
+		if words[0] == "quit" or words[0] == "q":
+			doquit = True
+		else:
+			tcmd = getCommand(words[0])
+			if tcmd != None:
+				if len(words) > 1:
+					tcmd.execute(words[1:])
+				else:
+					tcmd.execute()
+			else:
+				print "Not a valid command!"

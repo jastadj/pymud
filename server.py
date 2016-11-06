@@ -200,7 +200,7 @@ def start():
                         
                         usercmd = data[:-2]
                         
-                        if usercmd == "shutdown":
+                        if usercmd == "shutdown" or usercmd == "s":
                             doshutdown = True
                         elif usercmd == "test":
                             sock.send("main test")
