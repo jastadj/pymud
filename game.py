@@ -15,7 +15,7 @@ def handleUser(tuser):
         tuser.send(">")
         
         # get input from user
-        data = tuser.conn.recv(1024)
+        data = tuser.receive(1024)
         
         # data not valid, user disconnected?
         if not data:
@@ -28,11 +28,21 @@ def handleUser(tuser):
             continue
         
         # parse command
-        # find potential candidates
+        # store possible cmd candidates here
         poscmds = []
+        
+        # check user aliases
+        if words[0] in tuser.cred.cmdaliases:
+			words[0] = tuser.cred.cmdaliases[words[0]]
+        
+        # check input string for partial or equal matches
         for tw in command.commands:
             if tw.name.startswith(words[0]):
                 poscmds.append( tw)
+                #if command is exact match
+                if words[0] == tw.name:
+                    poscmds = [tw]
+                    break
         
         if len(poscmds) > 1:
             for pc in poscmds:
@@ -51,20 +61,17 @@ def handleUser(tuser):
                 if tcmd.name == "quit":
                     userquit = True
             else:
+                print words
                 tcmd.execute(tuser, words[1:])
                     
-    tuser.send("Logging off...\n")
-    print "User " + tuser.name + " logged off."
-    tuser.conn.close()
 
 def gameSay(tuser, msg):
-    mystr = tuser.name + ": " + msg
-    print mystr
-    for uindex in range(0, len(user.users) ):
-        if user.users[uindex] == tuser:
-            tuser.send("You say \"%s\"\n" % msg )
+    for usr in room.getUsersInRoom( room.getCurrentRoom(tuser) ):
+        if usr == tuser:
+            saystr = "You say \"%s\"" %msg
         else:
-            user.users[uindex].send(mystr + "\n")
+            saystr = "\n" + usr.cred.ulogin + " says \"%s\"" % msg
+        usr.send(saystr + "\n")
 
 def moveInDir(tuser, direction):
     if room.getCurrentRoom(tuser).exits[direction] == None:

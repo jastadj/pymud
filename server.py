@@ -12,7 +12,6 @@ import item
 import game
 import command
 
-
 def doLogin(conn):
     
     global doshutdown
@@ -29,6 +28,7 @@ def doLogin(conn):
     mode_newuserpass2 = 9
     mode_done = 5
     currentuser = None
+    currentusercred = None
     
     #infinite loop so that function do not terminate and thread do not end.
     while mode != mode_done:
@@ -42,8 +42,10 @@ def doLogin(conn):
         
         usercmd = data[:-2]
         
+        if len(usercmd) == 0:
+            continue;
 
-        
+        # LOGIN VERIFICATION STUFF
         if mode == mode_getlogin:
             userlogin[0] = usercmd
             # debug shutdown
@@ -51,6 +53,7 @@ def doLogin(conn):
                 conn.sendall("commanding server shutdown\n")
                 shutdownServer(None)
             
+            # if user login is new
             if user.usernameAvailable(userlogin[0]):
                 mode = mode_newusername
                 conn.sendall("User name available.  Create new user?(y/n)")
@@ -60,8 +63,10 @@ def doLogin(conn):
             
         elif mode == mode_getpass:
             userlogin[1] = usercmd
-
-            if user.validLogin(userlogin) == True:
+            
+            currentusercred = user.validLogin(userlogin)
+            
+            if currentusercred != None:
                 mode = mode_user
                 conn.sendall("Successful login!\n")
             else:
@@ -73,6 +78,12 @@ def doLogin(conn):
                 mode = mode_getlogin
         elif mode == mode_newusername:
             if usercmd == "y":
+                # check to make sure that user name is doable
+                if not user.validUsername(userlogin[0]):
+                    conn.sendall("That username is not valid!\n")
+                    conn.sendall("Letters only, no spaces.\n")
+                    mode = mode_getlogin
+                    continue
                 conn.sendall("Enter new user password:")
                 mode = mode_newuserpass1
             elif usercmd == "n":
@@ -90,20 +101,31 @@ def doLogin(conn):
                 conn.sendall("login:")
                 mode = mode_getlogin
             else:
-                if not user.createUserAccount(userlogin):
+                currentusercred = user.createUserAccount(userlogin)
+                if currentusercred == None:
                     conn.sendall("Error creating user account!\n")
                     mode = mode_getlogin
+                    continue
                 else:
-                    conn.sendall("User " + userlogin[0] + " created.\n")
+                    conn.sendall("User " +currentusercred.ulogin + " created.\n")
                     mode = mode_user
         
+        
+        # log in to user and start main loop
         if mode == mode_user:
-            conn.sendall("logged in as:" + userlogin[0] + "\n")
-            currentuser = user.user(conn, userlogin[0])
-            user.users.append(currentuser)
-            print currentuser.name + " logged in."
-            mode = mode_done
-            game.handleUser(currentuser)
+            if currentusercred != None:
+                currentuser = user.loadUser(currentusercred)
+                if currentuser == None:
+                    conn.sendall("Error loading user file!\n")
+                    mode = mode_getlogin
+                    conn.sendall("login:")
+                    continue
+                currentuser.dologin(conn)
+                conn.sendall("logged in as:" + currentusercred.ulogin + "\n")
+                user.users.append(currentuser)
+                print currentuser.cred.ulogin + " logged in."
+                mode = mode_done
+                game.handleUser(currentuser)
                 
                 
             
@@ -121,11 +143,11 @@ def serverBroadcast(msg):
     mystr = "[SERVER]: " + msg
     print mystr
     for uindex in range(0, len(user.users) ):
-         user.users[uindex].conn.sendall(mystr + "\n")
+         user.users[uindex].send(mystr + "\n")
     
 
 def saveServer():
-    user.saveUsers()
+    user.saveAllUsers()
     room.saveRooms()
     serverBroadcast("Server saved.")
     
@@ -138,7 +160,7 @@ def shutdownServer(tuser):
     doshutdown = True
     
     if tuser != None:
-        print tuser.name + " commanded server shutdown"
+        print tuser.cred.ulogin + " commanded server shutdown"
     
 def start():
     
@@ -165,7 +187,7 @@ def start():
 
 
     # load users
-    user.loadUsers()
+    user.loadUserCredentials()
 
     # load rooms
     room.loadRooms()
@@ -204,7 +226,7 @@ def start():
                             doshutdown = True
                         elif usercmd == "test":
                             sock.send("main test")
-                        elif usercmd == "login":
+                        elif usercmd == "login" or usercmd == "l":
                             CONNECTION_LIST.remove(sock)
                             start_new_thread(doLogin ,(sock,))
                         else:

@@ -41,7 +41,7 @@ class room(object):
         hadtovalidate = False   
         
         try:
-            dtest = len(self.descriptors())
+            dtest = len(self.descriptors)
         except AttributeError:
             self.descriptors = []
             hadtovalidate = True
@@ -87,6 +87,10 @@ class room(object):
         print self.exits
         print "items:" + str(len(self.inventory) )
         print "descriptors:" + str(len(self.descriptors))
+        print "users here:"
+        for usr in getUsersInRoom(self):
+            print usr.cred.ulogin
+        
     def userShow(self, tuser):
         # print room name and description
         tuser.send("%s" % setColor(tuser, COLOR_CYAN, True) )
@@ -119,124 +123,23 @@ class room(object):
                 else:
                     istring += self.inventory[i].name + ","
             tuser.send(istring + "\n")
-    
-    def userEdit(self, tuser):
-        userquit = False
-        editmode = 0
         
-        menustr = { 1:"Print Room",
-                    2:"Edit Name",
-                    3:"Edit Desc",
-                    4:"Create New Exit In Direction",
-                    5:"Done"
-                    }
-        
-        while not userquit:
-            
-            # print room directiosn
-            tuser.send("Exits:\n")
-            for i in range(0, len(self.exits)):
-                estr = ""
-                if self.exits[i] == None:
-                    estr = "None"
+        # print other players in room
+        ulist = getUsersInRoom(self)
+        if tuser in ulist:
+            ulist.remove(tuser)
+        ulistsz = len(ulist)
+        if ulistsz > 0:
+            uhere = ""
+            for usr in ulist:
+                if ulistsz == 1:
+                    uhere = usr.cred.ulogin + " is here."
                 else:
-                    estr = str( getRoomID(rooms[i]) )
-                tuser.send("%d.) %s - %s\n" % (i, DIRECTIONS[i], estr) )
-            
-            # print room
-            self.userShow(tuser)
-            
-            # print menu mode
-            if editmode == 0:
-                titlestr = "Edit Menu for Room #%d" % getRoomID(self)
-                for i in range(0, len(titlestr) ):
-                    if i == 0:
-                        titlestr += "\n"
-                    titlestr += "-"
-                tuser.send(titlestr + "\n")
-                
-                for i in range(0, len(menustr.keys()) ):
-                    tuser.send("%d. %s\n" % (menustr.keys()[i], menustr.values()[i]) )
-                tuser.send(">")
-            else:
-                try:
-                    tuser.send("%s : " % menustr[editmode])
-                except KeyError:
-                    tuser.send("Invalid option!\n")
-                    editmode = 0;
-                    continue
-            
-            # get input from user
-            data = tuser.conn.recv(4096)
-            
-            # data not valid, user disconnected?
-            if not data:
-                break
-            
-            # chop input into word list
-            usercmds = data.split()
-            
-            # if user hit return only
-            if len(usercmds) == 0 and editmode == 0:
-                continue
-            
-            # if edit mode is main menu, get mode selection
-            if editmode == 0:
-                editmode = int(usercmds[0])
-                # immediate actions (no input further)
-                if menustr[editmode] == "Print Room":
-                    self.userShow(tuser)
-                    editmode = 0
-                elif menustr[editmode] == "Done":
-                    userquit = True
-                continue
-            # else, user is in an option, get further input
-            if menustr[editmode] == "Print Room":
-                self.userShow(tuser)
-                editmode = 0
-            elif menustr[editmode] == "Edit Name":
-                tuser.send("New Room Name:\n")
-                tuser.send(data[:-2] + "\n")
-                if userYesOrNo(tuser):
-                    self.name = data[:-2]
-                    editmode = 0
-            elif menustr[editmode] == "Edit Desc":
-                tuser.send("New Room Description:\n")
-                tuser.send(data[:-2]+"\n")
-                if userYesOrNo(tuser):
-                    self.desc = data[:-2]
-                    editmode = 0
-            elif menustr[editmode] == "Create New Exit In Direction":
-                if len(usercmds) == 0:
-                    continue
-                try:
-                    tdir = int(usercmds[0])
-                except ValueError:
-                    tuser.send("Not a valid direction!  Enter dir #\n")
-                    editmode = 0
-                    continue;
-                if tdir < 0 or tdir >= len(DIRECTIONS):
-                    tuser.send("%d is an invalid direction!\n" % tdir)
-                    edit = 0
-                    continue
-                elif self.exits[tdir] != None:
-                    tuser.send("That direction is not empty!\n")
-                    editmode = 0
-                    continue
-                tuser.send("New room in direction: %s?" % DIRECTIONS[ int(usercmds[0]) ])
-                if userYesOrNo(tuser):
-                    # create new room in direction
-                    newroom = room()
-                    rooms.append( newroom)
-                    if not self.connectRoom(newroom, tdir):
-                        print "Error connecting rooms!"
-                    print "New room created, ID:" + str(getRoomID(newroom))
-                    #attach new room inversely
-                    
-                    editmode = 0
-                else:
-                    editmode = 0
-                
+                    if usr == ulist[-1]:
+                        uhere += usr.cred.ulogin + " are here."
+                    else:
+                        uhere += user.cred.ulogin + ", "
+            tuser.send(uhere + "\n")
 
 
 def lookRoom(tuser):
@@ -245,6 +148,17 @@ def lookRoom(tuser):
 def getCurrentRoom(tuser):
     return rooms[tuser.currentRoom]
 
+def getUsersInRoom(troom):
+    roomnum = getRoomID(troom)
+    
+    ulist = []
+    
+    for usr in user.users:
+        if usr.currentRoom == roomnum:
+            ulist.append(usr)
+    
+    return ulist
+        
                 
 def loadRooms():
     
@@ -255,9 +169,9 @@ def loadRooms():
         return
         
     # load room data
-    if os.path.isfile('rooms.pkl'):
+    if os.path.isfile('./data/rooms.pkl'):
         try:
-            fload = open(r'./rooms.pkl', 'rb')
+            fload = open(r'./data/rooms.pkl', 'rb')
             rooms = pickle.load(fload)
             fload.close()
         except EOFError:
@@ -265,7 +179,7 @@ def loadRooms():
             rooms.append( room() )
     # if not, create empty file
     else:
-        newfile = open('rooms.pkl', 'w')
+        newfile = open('./data/rooms.pkl', 'w')
         newfile.close()
         rooms.append( room() )
     
