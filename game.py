@@ -52,3 +52,15 @@ def gameSay(tuser, msg):
             tuser.send("You say \"%s\"\n" % msg )
         else:
             user.users[uindex].send(mystr + "\n")
+
+def moveInDir(tuser, direction):
+	if room.getCurrentRoom(tuser).exits[direction] == None:
+		tuser.send("No exit to the %s!\n" % room.DIRECTIONS[direction])
+		return
+	if direction < 0 or direction >= len(room.DIRECTIONS):
+		print "Error, user tried to move in direction " + str(direction)
+		return
+	
+	tuser.currentRoom = room.getCurrentRoom(tuser).exits[direction]
+	room.lookRoom(tuser)
+

@@ -5,6 +5,8 @@ class Item(object):
 	def __init__(self, name):
 		self.name = name
 
+# note , this isn't really copying anything
+# need to import copy and do the right thing!
 def copyItem(itemindex):
 	global items
 	

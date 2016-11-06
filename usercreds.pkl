@@ -4,4 +4,8 @@ S'john'
 p2
 aS'monkey'
 p3
+aa(lp4
+S'j'
+p5
+ag5
 aa.

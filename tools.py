@@ -9,13 +9,16 @@ def unsplit(words):
             sentence += " "
     return sentence
 
-def userYesOrNo(user):
+def userYesOrNo(tuser, msg = "(y/n)"):
 	
 	done = False
 
 	while not done:
+		
+		tuser.send(msg)
+		
 		# get input from user
-		data = user.conn.recv(1024)
+		data = tuser.conn.recv(1024)
 
 		# data not valid, user disconnected?
 		if not data:
@@ -30,5 +33,4 @@ def userYesOrNo(user):
 			return True
 		elif usercmds[0][0] == 'n' or usercmds[0][0] == 'N':
 			return False
-		else:
-			user.conn.sendall("(Y/N)")
+

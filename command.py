@@ -2,6 +2,7 @@ import game
 import user
 import server
 import room
+import item
 
 commands = []
 
@@ -44,11 +45,31 @@ def doEditRoom(tuser):
 def doShutdownServer(tuser):
 	server.shutdownServer(tuser)
 
+def doMoveNorth(tuser):
+	game.moveInDir(tuser, 0)
+def doMoveSouth(tuser):
+	game.moveInDir(tuser, 1)
+def doMoveEast(tuser):
+	game.moveInDir(tuser, 2)
+def doMoveWest(tuser):
+	game.moveInDir(tuser, 3)
+
+
+def doDebug(tuser):
+	tuser.send("Doing debug...\n")
+	
+	room.getCurrentRoom(tuser).show()
+
 commands.append( command("help", "Show help menu", showHelp) )
 commands.append( command("shutdown", "Shutdown server", doShutdownServer) )
 commands.append( command("save", "Save Server Data", doSaveServer) )
 commands.append( command("look", "Look around", room.lookRoom) )
 commands.append( command("editroom", "Edit room data", doEditRoom) )
 commands.append( command("quit", "Logout", None) )
+commands.append( command("debug", "do something", doDebug) )
+commands.append( command("n", "Move North", doMoveNorth) )
+commands.append( command("s", "Move South", doMoveSouth) )
+commands.append( command("e", "Move East", doMoveEast) )
+commands.append( command("w", "Move West", doMoveWest) )
 
 
